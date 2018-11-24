@@ -1,0 +1,4 @@
+[submodule "ext/Progression"]
+	path = ext/Progression
+	url = git@github.com:LiamTyler/Progression.git
+	branch = cuda
