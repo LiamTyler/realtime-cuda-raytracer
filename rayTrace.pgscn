@@ -1,0 +1,30 @@
+Camera
+name main-camera
+position 0 0 10
+rotation 0 0 0
+scale 1 1 1
+fov 45
+aspect 16:9
+near-plane .1
+far-plane 300
+primary-camera true
+
+#Light
+#name mainDirectional
+#type directional
+#rotation -35 -40 0
+#
+#Skybox
+#name water
+#
+#GameObject
+#name floor
+#scale 100 1 100
+#model metalFloor
+#
+#GameObject
+#name robot
+#position 0 2 0
+#scale 20 20 20
+#model robot
+
