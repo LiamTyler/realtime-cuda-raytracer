@@ -12,24 +12,10 @@ int intersection(const RTScene& scene, const Ray& ray, float& t) {
             }
         }
     }
-    t = minT;
 
+    t = minT;
     return index;
 }
-
-/*
-__device__ inline int intersection2(const RTScene& scene, const Ray& ray, float &t) {
-    float d, inf = t = 1e20;
-    int id = -1;
-    for (int i = 0; i < scene.numSpheres; ++i) {
-        if ((d = scenespheres[i].intersect_sphere(r)) && d<t){
-        if (raySphereTest(ray, scene.spheres[i], t)) {
-            t = d;  // keep track of distance along ray to closest intersection point
-            id = i; // and closest intersected object
-        }
-    return id
-}
-*/
 
 __device__ float3 lightSphere(const RTScene& scene, const Sphere& sphere, const Ray& ray, float t) {
     float3 p = ray.eval(t);
@@ -39,11 +25,11 @@ __device__ float3 lightSphere(const RTScene& scene, const Sphere& sphere, const 
     float3 v = -ray.dir;
 
     for (int i = 0; i < scene.numDirectionalLights; ++i) {
-        float3 l = -scene.lights[2 * i];
+        float3 l = scene.lights[2 * i];
         float3 lightColor = scene.lights[2 * i + 1];
 
-        color = color + fmaxf(0.0f, dot(n, l)) * lightColor * mat.kd;
-        color = color + powf(fmaxf(0.0f, dot(v, reflect(l, n))), mat.power) * lightColor * mat.ks;
+        color += lightColor * mat.kd * fmaxf(0.0f, dot(n, -l));
+        color += lightColor * mat.ks * powf(fmaxf(0.0f, dot(v, reflect(l, n))), mat.power);
     }
 
     return color;
@@ -62,7 +48,13 @@ __device__ float3 traceRay(const Ray& ray, const RTScene& scene, int depth) {
     float3 color = make_float3(0, 0, 0);
     const Sphere& s = scene.spheres[index];
 
-    color = lightSphere(scene, s, ray, t);
+    color += lightSphere(scene, s, ray, t);
+
+    float3 p = ray.eval(t);
+    float3 n = normalize(p - s.pos);
+    float3 reflectDir = reflect(ray.dir, n);
+    Ray reflectRay(p + 0.001f * reflectDir, reflectDir);
+    color += scene.materials[s.matID].ks * traceRay(reflectRay, scene, depth + 1);
 
     return color;
 }

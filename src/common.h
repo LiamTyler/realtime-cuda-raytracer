@@ -21,8 +21,14 @@ void _check(cudaError_t code, const char* file, int line) {
 inline __host__ __device__ float3 operator+(const float3& a, const float3& b) {
     return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
+inline __host__ __device__ void operator+=(float3& a, const float3& b) {
+    a.x += b.x; a.y += b.y; a.z += b.z;
+}
 inline __host__ __device__ float3 operator-(const float3& a, const float3& b) {
     return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+inline __host__ __device__ void operator-=(float3& a, const float3& b) {
+    a.x -= b.x; a.y -= b.y; a.z -= b.z;
 }
 inline __host__ __device__ float3 operator-(const float3& a) {
     return make_float3(-a.x, -a.y, -a.z);
@@ -34,6 +40,9 @@ inline __host__ __device__ float3 operator*(const float3& a, const float3& b) {
 inline __host__ __device__ float3 operator*(const float& a, const float3& b) {
     return make_float3(a * b.x, a * b.y, a * b.z);
 }
+inline __host__ __device__ float3 operator*(const float3& b, const float& a) {
+    return make_float3(a * b.x, a * b.y, a * b.z);
+}
 inline __host__ __device__ float dot(const float3& a, const float3& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
@@ -42,7 +51,8 @@ inline __host__ __device__ float3 normalize(const float3& a) {
     return l * a;
 }
 inline __host__ __device__ float3 reflect(const float3& D, const float3& N) {
-    return 2.0f * dot(D, N) * N - D;
+    // return 2.0f * dot(D, N) * N - D;
+    return D - 2.0f * dot(D, N) * N;
 }
 inline __host__ __device__ float3 fminf(const float3& a, const float3& b) {
     return make_float3(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z));
