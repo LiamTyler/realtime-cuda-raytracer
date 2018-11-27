@@ -19,6 +19,7 @@ typedef struct Sphere {
 } Sphere;
 
 typedef struct Ray {
+    __host__ __device__ Ray() : pos(make_float3(0, 0, 0)), dir(make_float3(0, 0, 0)) {}
     __host__ __device__ Ray(float3 p, float3 d) : pos(p), dir(d) {}
     float3 pos;
     float3 dir;

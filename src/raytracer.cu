@@ -1,5 +1,35 @@
 #include "raytracer.h"
 
+#define QSIZE 5;
+
+typedef struct QItem {
+    __device__ QItem() {}
+    __device__ QItem(const Ray& r, const float3& m, int d) : ray(r), multiplier(m), depth(d) {}
+    Ray ray;
+    float3 multiplier;
+    int depth;
+} QItem;
+
+typedef struct RayQ {
+    __device__ RayQ() : start(0), end(0) {}
+    __device__ void push(const QItem& item) {
+        Q[end] = item;
+        end = (end + 1) % QSIZE;
+    }
+
+    __device__ bool pop(QItem& item) {
+        if (start == end)
+            return false;
+        item = Q[start];
+        start = (start + 1) % QSIZE;
+        return true;
+    }
+
+    int start;
+    int end;
+    QItem Q[5];
+} RayQ;
+
 __device__
 int intersection(const RTScene& scene, const Ray& ray, float& t) {
     float minT;
@@ -35,26 +65,31 @@ __device__ float3 lightSphere(const RTScene& scene, const Sphere& sphere, const 
     return color;
 }
 
-__device__ float3 traceRay(const Ray& ray, const RTScene& scene, int depth) {
-    if (depth >= 5)
+__device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
+    if (item.depth >= 5)
         return make_float3(0, 0, 0);
 
     float t;
+    const Ray& ray = item.ray;
     int index = intersection(scene, ray, t);
     if (index == -1)
         return make_float3(0, 0, 0);
 
-    
     float3 color = make_float3(0, 0, 0);
     const Sphere& s = scene.spheres[index];
 
-    color += lightSphere(scene, s, ray, t);
+    color += item.multiplier * lightSphere(scene, s, ray, t);
+
+    float3 reflectMult = item.multiplier * scene.materials[s.matID].ks;
+    if (dot(reflectMult, reflectMult) < 0.05f)
+        return color;
 
     float3 p = ray.eval(t);
     float3 n = normalize(p - s.pos);
     float3 reflectDir = reflect(ray.dir, n);
     Ray reflectRay(p + 0.001f * reflectDir, reflectDir);
-    color += scene.materials[s.matID].ks * traceRay(reflectRay, scene, depth + 1);
+    QItem reflectItem(reflectRay, reflectMult, item.depth + 1);
+    Q.push(reflectItem);
 
     return color;
 }
@@ -68,10 +103,18 @@ void rayTraceKernel(cudaSurfaceObject_t surface, int SW, int SH,
     if (x >= SW && y >= SH)
         return;
 
-    float3 pos2 = UL + x * DX + y * DY;
-    Ray ray(P, normalize(pos2 - P));
+    RayQ Q;
 
-    float3 color = traceRay(ray, scene, 0);
+    float3 pos2 = UL + x * DX + y * DY;
+    QItem item(Ray(P, normalize(pos2 - P)), make_float3(1, 1, 1), 0);
+    Q.push(item);
+
+    float3 color = make_float3(0, 0, 0);
+
+    while (Q.pop(item)) {
+        color += traceRay(Q, item, scene);
+    }
+
     uchar4 pixel = toPixel(color);
     surf2Dwrite(pixel, surface, x * sizeof(uchar4), y);
 }
@@ -189,10 +232,10 @@ void RayTracer::Render(Camera* camera) {
         printf("kernel Error: %s\n", cudaGetErrorString(err));
     }
 
-    cudaDestroySurfaceObject(surf);
-    cudaGraphicsUnmapResources(1, &cudaTex_);
+    check(cudaDestroySurfaceObject(surf));
+    check(cudaGraphicsUnmapResources(1, &cudaTex_));
     // cudaStreamSynchronize(0);
-    cudaDeviceSynchronize();
+    check(cudaDeviceSynchronize());
 
 
     PG::graphics::SetClearColor(1, 1, 1, 1);
