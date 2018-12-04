@@ -31,9 +31,10 @@ typedef struct RayQ {
 } RayQ;
 
 __device__
-int intersection(const RTScene& scene, const Ray& ray, float& t) {
+int intersection(const RTScene& scene, const Ray& ray, float& t, int& type) {
     float minT;
     int index = -1;
+    type = 0;
     for (int i = 0; i < scene.numSpheres; ++i) {
         if (raySphereTest(ray, scene.spheres[i], t)) {
             if (index == -1 || t < minT) {
@@ -43,23 +44,29 @@ int intersection(const RTScene& scene, const Ray& ray, float& t) {
         }
     }
 
+    for (int i = 0; i < scene.mesh.numTriangles; ++i) {
+        if (rayTriangleTest(ray, scene.mesh, scene.mesh.triangles[i], t)) {
+            if (index == -1 || t < minT) {
+                index = i;
+                type = 1;
+                minT = t;
+            }
+        }
+    }
+
     t = minT;
     return index;
 }
 
-__device__ float3 lightSphere(const RTScene& scene, const Sphere& sphere, const Ray& ray, float t) {
-    float3 p = ray.eval(t);
-    float3 n = normalize(p - sphere.pos);
-    const RTMaterial& mat = scene.materials[sphere.matID];
+__device__ float3 computeLighting(const RTScene& scene, const RTMaterial& mat, const float3& P, const float3& N, const float3& V, float t) {
     float3 color = make_float3(0, 0, 0);
-    float3 v = -ray.dir;
 
     for (int i = 0; i < scene.numDirectionalLights; ++i) {
         float3 l = scene.lights[2 * i];
         float3 lightColor = scene.lights[2 * i + 1];
 
-        color += lightColor * mat.kd * fmaxf(0.0f, dot(n, -l));
-        color += lightColor * mat.ks * powf(fmaxf(0.0f, dot(v, reflect(l, n))), mat.power);
+        color += lightColor * mat.kd * fmaxf(0.0f, dot(N, -l));
+        color += lightColor * mat.ks * powf(fmaxf(0.0f, dot(V, reflect(l, N))), mat.power);
     }
 
     return color;
@@ -71,21 +78,32 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
 
     float t;
     const Ray& ray = item.ray;
-    int index = intersection(scene, ray, t);
+    int type;
+    int index = intersection(scene, ray, t, type);
     if (index == -1)
         return make_float3(0, 0, 0);
 
     float3 color = make_float3(0, 0, 0);
-    const Sphere& s = scene.spheres[index];
+    float3 p = ray.eval(t);
+    float3 n;
+    unsigned short matID;
 
-    color += item.multiplier * lightSphere(scene, s, ray, t);
+    if (type == 0) { // sphere
+        const Sphere& s = scene.spheres[index];
+        n = normalize(p - s.pos);
+        matID = s.matID;
+    } else { // triangle
+        n = scene.mesh.getNormal(index, 0, 0);
+        matID = scene.mesh.matID;
+    }
+    const RTMaterial& mat = scene.materials[matID];
 
-    float3 reflectMult = item.multiplier * scene.materials[s.matID].ks;
-    if (dot(reflectMult, reflectMult) < 0.05f)
+    color += item.multiplier * computeLighting(scene, mat, p, n, -ray.dir, t);
+
+    float3 reflectMult = item.multiplier * mat.ks;
+    if (dot(reflectMult, reflectMult) < 0.1f)
         return color;
 
-    float3 p = ray.eval(t);
-    float3 n = normalize(p - s.pos);
     float3 reflectDir = reflect(ray.dir, n);
     Ray reflectRay(p + 0.001f * reflectDir, reflectDir);
     QItem reflectItem(reflectRay, reflectMult, item.depth + 1);

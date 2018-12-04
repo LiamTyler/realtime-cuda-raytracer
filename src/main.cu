@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
     int numSpheres = 400;
     rayTracer.Init(1, numSpheres, 5);
 
+    // spheres
     Sphere h_spheres[numSpheres];
     for (int i = 0; i < numSpheres; ++i) {
         // h_spheres[i] = Sphere(make_float3(-6 + 3*i, 0, -10), 1, i);
@@ -28,6 +29,29 @@ int main(int argc, char* argv[]) {
         h_spheres[i] = Sphere(make_float3(X, Y, Z), 1, rand() % 5);
     }
 
+    check(cudaMemcpy(rayTracer.scene.spheres, h_spheres, sizeof(Sphere) * numSpheres, cudaMemcpyHostToDevice));
+    rayTracer.scene.numSpheres = numSpheres;
+    rayTracer.scene.numSpheres = 0;
+
+
+    std::vector<glm::vec3> verts = {
+        glm::vec3(-5, 5, 0),
+        glm::vec3(-5, -5, 0),
+        glm::vec3(5, -5, 0)
+    };
+    std::vector<glm::vec3> norms = {
+        glm::vec3(0, 0, 1),
+        glm::vec3(0, 0, 1),
+        glm::vec3(0, 0, 1)
+    };
+    std::vector<Triangle> tris = {
+        Triangle(0, 1, 2)
+    };
+    rayTracer.scene.mesh = CudaMesh(verts, norms, tris, 0);
+
+
+
+    // materials
     RTMaterial h_mats[5];
     h_mats[0].kd = make_float3(1, 0, 0);
     h_mats[1].kd = make_float3(0, 1, 0);
@@ -39,14 +63,14 @@ int main(int argc, char* argv[]) {
         h_mats[i].power = 50;
     }
 
+    check(cudaMemcpy(rayTracer.scene.materials, h_mats, sizeof(RTMaterial) * 5, cudaMemcpyHostToDevice));
+
+
+    // lights
     float3 lights[2];
     lights[0] = normalize(make_float3(0, 0, -1));
     lights[1] = make_float3(1, 1, 1);
 
-    // check(cudaMalloc((void**) &rayTracer.d_spheres, 5 * sizeof(Sphere)));
-    check(cudaMemcpy(rayTracer.scene.spheres, h_spheres, sizeof(Sphere) * numSpheres, cudaMemcpyHostToDevice));
-    rayTracer.scene.numSpheres = numSpheres;
-    check(cudaMemcpy(rayTracer.scene.materials, h_mats, sizeof(RTMaterial) * 5, cudaMemcpyHostToDevice));
     check(cudaMemcpy(rayTracer.scene.lights, lights, 1 * sizeof(float3) * 2, cudaMemcpyHostToDevice));
     rayTracer.scene.numDirectionalLights = 1;
     rayTracer.scene.numPointLights = 0;

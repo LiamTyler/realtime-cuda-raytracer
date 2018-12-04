@@ -9,5 +9,6 @@ typedef struct RTScene {
     int numPointLights;
     Sphere* spheres;
     int numSpheres;
+    CudaMesh mesh;
     RTMaterial* materials;
 } RTScene;
