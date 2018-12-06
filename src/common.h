@@ -1,6 +1,8 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#define GLM_FORCE_PURE
+
 #include "progression.h"
 #include <iostream>
 #include <math.h>

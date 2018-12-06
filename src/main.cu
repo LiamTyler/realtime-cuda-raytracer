@@ -11,12 +11,13 @@ int main(int argc, char* argv[]) {
 
     PG::EngineInitialize(conf);
 
-    auto scene = Scene::Load("/home/liam/Documents/School/5351/realtime-cuda-raytracer/rayTrace.pgscn");
-    auto camera = scene->GetCamera();
+	auto scene = Scene::Load(PG_ROOT_DIR "../../rayTrace.pgscn");
+	//auto scene = Scene::Load("/home/liam/Documents/School/5351/realtime-cuda-raytracer/rayTrace.pgscn");
+	auto camera = scene->GetCamera();
     camera->AddComponent<UserCameraComponent>(new UserCameraComponent(camera));
 
     RayTracer rayTracer;
-    int numSpheres = 400;
+    const int numSpheres = 400;
     rayTracer.Init(1, numSpheres, 5);
 
     // spheres
