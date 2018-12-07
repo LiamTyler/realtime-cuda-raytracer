@@ -1,4 +1,5 @@
 #include "raytracer.cu"
+#include "resource_loader.h"
 
 using namespace Progression;
 
@@ -35,6 +36,7 @@ int main(int argc, char* argv[]) {
     rayTracer.scene.numSpheres = 0;
 
 
+    /*
     std::vector<glm::vec3> verts = {
         glm::vec3(-5, 5, 0),
         glm::vec3(-5, -5, 0),
@@ -49,7 +51,9 @@ int main(int argc, char* argv[]) {
         Triangle(0, 1, 2)
     };
     rayTracer.scene.mesh = CudaMesh(verts, norms, tris, 0);
-
+    */
+    const auto& mesh = loadRTModel(PG_ROOT_DIR "../../cube.rtModel");
+    rayTracer.scene.mesh = mesh[0].first;
 
 
     // materials
@@ -69,7 +73,7 @@ int main(int argc, char* argv[]) {
 
     // lights
     float3 lights[2];
-    lights[0] = normalize(make_float3(0, 0, -1));
+    lights[0] = normalize(make_float3(.8, -.3, -1));
     lights[1] = make_float3(1, 1, 1);
 
     check(cudaMemcpy(rayTracer.scene.lights, lights, 1 * sizeof(float3) * 2, cudaMemcpyHostToDevice));

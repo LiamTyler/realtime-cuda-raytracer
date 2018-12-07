@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(raytracer LANGUAGES CXX CUDA)
 
+set(PROGRESSION_BUILD_EXAMPLES OFF CACHE BOOL " " FORCE)
+
 add_subdirectory(ext/Progression)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/ext/Progression/cmake")
