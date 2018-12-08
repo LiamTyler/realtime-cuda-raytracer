@@ -107,8 +107,12 @@ __device__ bool rayTriangleTest(const Ray& ray, const CudaMesh& mesh, const Tria
     float3 e13 = v3 - v1;
     float3 N = cross(e12, e13);
 
+    float NdotRay = dot(ray.dir, N);
+    if (NdotRay < 0.0001)
+        return false;
+
     float d = dot(v1, N);
-    t = -(dot(ray.pos, N) - d) / dot(ray.dir, N);
+    t = -(dot(ray.pos, N) - d) / NdotRay;
     if (t < 0)
         return false;
 
