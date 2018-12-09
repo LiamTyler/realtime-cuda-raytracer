@@ -31,7 +31,7 @@ typedef struct RayQ {
 } RayQ;
 
 __device__
-int intersection(const RTScene& scene, const Ray& ray, float& t, int& type) {
+int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int& meshNum) {
     float minT;
     int index = -1;
     type = 0;
@@ -44,12 +44,17 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type) {
         }
     }
 
-    for (int i = 0; i < scene.mesh.numTriangles; ++i) {
-        if (rayTriangleTest(ray, scene.mesh, scene.mesh.triangles[i], t)) {
-            if (index == -1 || t < minT) {
-                index = i;
-                type = 1;
-                minT = t;
+    for (int m = 0; m < scene.numMeshes; ++m) {
+        CudaMesh& mesh = scene.meshes[m];
+        int numTris = mesh.numTriangles;
+        for (int i = 0; i < numTris; ++i) {
+            if (rayTriangleTest(ray, mesh, mesh.triangles[i], t)) {
+                if (index == -1 || t < minT) {
+                    meshNum = m;
+                    index = i;
+                    type = 1;
+                    minT = t;
+                }
             }
         }
     }
@@ -78,8 +83,8 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
 
     float t;
     const Ray& ray = item.ray;
-    int type;
-    int index = intersection(scene, ray, t, type);
+    int type, meshNum;
+    int index = intersection(scene, ray, t, type, meshNum);
     if (index == -1)
         return make_float3(0, 0, 0);
 
@@ -93,8 +98,8 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
         n = normalize(p - s.pos);
         matID = s.matID;
     } else { // triangle
-        n = scene.mesh.getNormal(index, 0, 0);
-        matID = scene.mesh.matID;
+        n = scene.meshes[meshNum].getNormal(index, 0, 0);
+        matID = scene.meshes[meshNum].matID;
     }
     const RTMaterial& mat = scene.materials[matID];
 
@@ -137,7 +142,7 @@ void rayTraceKernel(cudaSurfaceObject_t surface, int SW, int SH,
     surf2Dwrite(pixel, surface, x * sizeof(uchar4), y);
 }
 
-void RayTracer::Init(int maxLights, int maxSpheres, int maxMaterials) {
+void RayTracer::Init(Scene& pgScene) {
     copyShader_ = PG::Shader(PG_RESOURCE_DIR "shaders/copy.vert", PG_RESOURCE_DIR "shaders/copy.frag");
 
     int SW = PG::Window::getWindowSize().x;
@@ -170,28 +175,14 @@ void RayTracer::Init(int maxLights, int maxSpheres, int maxMaterials) {
     if (err != cudaSuccess) {
         printf("Error: %s\n", cudaGetErrorString(err));
     }
-    std::cout << "before register" << std::endl;
 
     check(cudaGraphicsGLRegisterImage(&cudaTex_, glTexture_, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         printf("Error: %s\n", cudaGetErrorString(err));
     }
-    std::cout << "after register" << std::endl;
 
-    check(cudaMalloc((void**) &scene.lights, 2 * maxLights * sizeof(float3)));
-    check(cudaMalloc((void**) &scene.spheres, maxSpheres * sizeof(Sphere)));
-    check(cudaMalloc((void**) &scene.materials, maxMaterials * sizeof(RTMaterial)));
-    scene.numDirectionalLights = 0;
-    scene.numPointLights = 0;
-    scene.numSpheres = 0;
-
-
-    std::cout << "after mallocs" << std::endl;
-    err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        printf("Error: %s\n", cudaGetErrorString(err));
-    }
+    scene = createRTSceneFromPGScene(pgScene);
 }
 
 void RayTracer::Free() {

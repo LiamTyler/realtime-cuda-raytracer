@@ -1,3 +1,7 @@
+Resource-file
+filename ../../../rayTraceResources.txt
+
+
 Camera
 name main-camera
 position 0 0 10
@@ -9,22 +13,23 @@ near-plane .1
 far-plane 300
 primary-camera true
 
-#Light
-#name mainDirectional
-#type directional
-#rotation -35 -40 0
-#
-#Skybox
-#name water
-#
-#GameObject
-#name floor
-#scale 100 1 100
-#model metalFloor
-#
-#GameObject
-#name robot
-#position 0 2 0
-#scale 20 20 20
-#model robot
+Light
+name mainDirectional
+type directional
+color 1 1 1
+intensity 1
+rotation 35 -40 0
 
+GameObject
+name cube
+position 0 0 0
+rtinfo
+model cube.rtModel
+material red
+
+GameObject
+name cube2
+position -5 0 0
+rtinfo
+sphere 2
+material green

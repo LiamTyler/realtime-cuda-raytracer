@@ -1,0 +1,40 @@
+Material
+name red
+kd 1 0 0 
+ks .7 .7 .7
+ke 0 0 0
+ns 50
+ior 0
+
+Material
+name green
+kd 0 1 0 
+ks .7 .7 .7
+ke 0 0 0
+ns 50
+ior 0
+
+Material
+name blue
+kd 0 0 1 
+ks .7 .7 .7
+ke 0 0 0
+ns 50
+ior 0
+
+Material
+name purple
+kd 1 0 1 
+ks .7 .7 .7
+ke 0 0 0
+ns 50
+ior 0
+
+Material
+name yellow
+kd 1 1 0 
+ks .7 .7 .7
+ke 0 0 0
+ns 50
+ior 0
+

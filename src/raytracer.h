@@ -9,7 +9,7 @@ class RayTracer {
     public:
         RayTracer() = default;
 
-        void Init(int maxLights, int maxSpheres, int maxMaterials);
+        void Init(Scene& pgScene);
         void Free();
         void Render(Camera* camera);
 
