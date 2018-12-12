@@ -28,12 +28,23 @@ typedef struct Triangle {
     int v1, v2, v3;
 } Triangle;
 
+typedef struct BVH {
+    int numShapes;
+    int left;
+    int right;
+    float3 min;
+    float3 max;
+
+    __device__ bool isLeaf() const { return numShapes != 0; }
+} BVH;
+
 typedef struct CudaMesh {
 
     __host__ CudaMesh() {}
     __host__ CudaMesh(const std::vector<glm::vec3>& verts,
                       const std::vector<glm::vec3>& norms,
                       const std::vector<Triangle>& tris,
+                      const std::vector<BVH>& _bvh,
                       unsigned short m) {
         matID = m;
         numTriangles = tris.size();
@@ -46,6 +57,9 @@ typedef struct CudaMesh {
 
         check(cudaMalloc((void**) &triangles, tris.size() * sizeof(Triangle)));
         check(cudaMemcpy(triangles, &tris[0], tris.size() * sizeof(Triangle), cudaMemcpyHostToDevice));
+
+        check(cudaMalloc((void**) &bvh, _bvh.size() * sizeof(BVH)));
+        check(cudaMemcpy(bvh, &_bvh[0], _bvh.size() * sizeof(BVH), cudaMemcpyHostToDevice));
     }
 
     __device__ void getVertices(const Triangle& t, float3& v1, float3& v2, float3& v3) const {
@@ -69,6 +83,7 @@ typedef struct CudaMesh {
     float3* vertices;
     float3* normals;
     Triangle* triangles;
+    BVH* bvh;
     unsigned short matID;
     int numTriangles;
 } CudaMesh;
@@ -99,7 +114,14 @@ __device__ bool raySphereTest(const Ray& ray, const Sphere& sphere, float& t) {
     return t >= 0;
 }
 
-__device__ bool rayTriangleTest(const Ray& ray, const CudaMesh& mesh, const Triangle& triangle, float& t) {
+__device__ bool rayTriangleTest(
+        const Ray& ray,
+        const CudaMesh& mesh,
+        const Triangle& triangle,
+        float& t,
+        float& u,
+        float& v)
+{
     float3 v1, v2, v3;
     mesh.getVertices(triangle, v1, v2, v3);
 
@@ -130,16 +152,78 @@ __device__ bool rayTriangleTest(const Ray& ray, const CudaMesh& mesh, const Tria
     if (dot(vpCross, N) < 0)
         return false;
 
-    // float u = 0.5f * length(vpCross) / area;
+    u = 0.5f * length(vpCross) / area;
 
     vp      = P - v3;
     vpCross = cross(v1 - v3, vp);
     if (dot(vpCross, N) < 0)
         return false;
 
-    // float v = 0.5f * length(vpCross) / area;
+    v = 0.5f * length(vpCross) / area;
 
     return true;
+}
+
+__device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3& min, const float3& max) {
+    float tmin = (min.x - p.x) * invDir.x;
+    float tmax = (max.x - p.x) * invDir.x;
+    float tmp;
+    if (tmin > tmax) {
+        tmp = tmax;
+        tmax = tmin;
+        tmin = tmp;
+    }
+    float tymin = (min.y - p.y) * invDir.y;
+    float tymax = (max.y - p.y) * invDir.y;
+    if (tymin > tymax) {
+        tmp = tymax;
+        tymax = tymin;
+        tymin = tmp;
+    }
+    if ((tmin > tymax) || (tymin > tmax))
+        return false;
+
+    tmin = fmaxf(tymin, tmin);
+    tmax = fminf(tymax, tmax);
+
+    float tzmin = (min.z - p.z) * invDir.z;
+    float tzmax = (max.z - p.z) * invDir.z;
+    if (tzmin > tzmax) {
+        tmp = tzmax;
+        tzmax = tzmin;
+        tzmin = tmp;
+    }
+    if ((tmin > tzmax) || (tzmin > tmax))
+        return false;
+
+    return true;
+
+    /*
+    vec3 p = ray.p;
+    vec3 d = ray.dir;
+    float tmin = (min_.x - p.x) / d.x;
+    float tmax = (max_.x - p.x) / d.x;
+    if (tmin > tmax)
+        swap(tmin, tmax);
+    float tymin = (min_.y - p.y) / d.y;
+    float tymax = (max_.y - p.y) / d.y;
+    if (tymin > tymax)
+        swap(tymin, tymax);
+    if ((tmin > tymax) || (tymin > tmax))
+        return false;
+
+    tmin = max(tymin, tmin);
+    tmax = min(tymax, tmax);
+
+    float tzmin = (min_.z - p.z) / d.z;
+    float tzmax = (max_.z - p.z) / d.z;
+    if (tzmin > tzmax)
+        swap(tzmin, tzmax);
+    if ((tmin > tzmax) || (tzmin > tmax))
+        return false;
+
+    return true;
+    */
 }
 
 #endif

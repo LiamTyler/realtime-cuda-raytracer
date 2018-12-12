@@ -44,6 +44,9 @@ inline __host__ __device__ float3 operator*(const float& a, const float3& b) {
 inline __host__ __device__ float3 operator*(const float3& b, const float& a) {
     return make_float3(a * b.x, a * b.y, a * b.z);
 }
+inline __host__ __device__ float3 operator/(const float& a, const float3& b) {
+    return make_float3(a / b.x, a / b.y, a / b.z);
+}
 
 inline __host__ __device__ float dot(const float3& a, const float3& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;

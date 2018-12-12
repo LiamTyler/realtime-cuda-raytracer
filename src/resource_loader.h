@@ -28,24 +28,29 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> normals;
     std::vector<Triangle> tris;
+    std::vector<BVH> bvh;
+    std::cout << "size of bvh = " << sizeof(BVH) << std::endl;
 
     // parse all of the meshes
     for (int i = 0; i < numMeshes; ++i) {
         auto& mesh = list[i].first;
 
-        int numVerts, numTris;
+        int numVerts, numTris, bvh_size;
         in.read((char*)&numVerts, sizeof(unsigned int));
         in.read((char*)&numTris, sizeof(unsigned int));
+        in.read((char*)&bvh_size, sizeof(unsigned int));
 
         verts.resize(numVerts);
         normals.resize(numVerts);
         tris.resize(numTris);
+        bvh.resize(bvh_size);
 
         in.read((char*)&verts[0], numVerts * sizeof(glm::vec3));
         in.read((char*)&normals[0], numVerts * sizeof(glm::vec3));
         in.read((char*)&tris[0], numTris * sizeof(Triangle));
+        in.read((char*)&bvh[0], bvh_size * sizeof(BVH));
 
-        mesh = CudaMesh(verts, normals, tris, i);
+        mesh = CudaMesh(verts, normals, tris, bvh, i);
 
     }
 
