@@ -198,32 +198,28 @@ __device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3&
 
     return true;
 
-    /*
-    vec3 p = ray.p;
-    vec3 d = ray.dir;
-    float tmin = (min_.x - p.x) / d.x;
-    float tmax = (max_.x - p.x) / d.x;
-    if (tmin > tmax)
-        swap(tmin, tmax);
-    float tymin = (min_.y - p.y) / d.y;
-    float tymax = (max_.y - p.y) / d.y;
-    if (tymin > tymax)
-        swap(tymin, tymax);
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
+}
 
-    tmin = max(tymin, tmin);
-    tmax = min(tymax, tmax);
+__device__ bool RayAABBTest2(const float3& p, const float3& invDir, const float3& min, const float3& max, const float& t) {
+  float tx1 = (min.x - p.x)*invDir.x;
+  float tx2 = (max.x - p.x)*invDir.x;
 
-    float tzmin = (min_.z - p.z) / d.z;
-    float tzmax = (max_.z - p.z) / d.z;
-    if (tzmin > tzmax)
-        swap(tzmin, tzmax);
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
+  float tmin = fminf(tx1, tx2);
+  float tmax = fmaxf(tx1, tx2);
 
-    return true;
-    */
+  float ty1 = (min.y - p.y)*invDir.y;
+  float ty2 = (max.y - p.y)*invDir.y;
+
+  tmin = fmaxf(tmin, fminf(ty1, ty2));
+  tmax = fminf(tmax, fmaxf(ty1, ty2));
+
+  float tz1 = (min.z - p.z)*invDir.z;
+  float tz2 = (max.z - p.z)*invDir.z;
+
+  tmin = fmaxf(tmin, fminf(tz1, tz2));
+  tmax = fminf(tmax, fmaxf(tz1, tz2));
+
+  return tmax >= fmaxf(0.0f, tmin) && tmin < t;
 }
 
 #endif

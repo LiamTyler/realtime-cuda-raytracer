@@ -25,7 +25,7 @@ name cube
 position 0 5 0
 rtinfo
 #model cube.rtModel
-model teapot.rtModel
+model dragon.rtModel
 material red
 
 GameObject

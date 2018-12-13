@@ -1,6 +1,7 @@
 #include "raytracer.h"
 
 #define QSIZE 5;
+#define BLOCK_SIZE 8
 
 typedef struct QItem {
     __device__ QItem() {}
@@ -31,13 +32,14 @@ typedef struct RayQ {
 } RayQ;
 
 __device__
-int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int& meshNum, float& u, float& v) {
-    float minT;
+int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int& meshNum, float& u, float& v, int* localStack) {
+    float minT = 1e30f;
     int index = -1;
     type = 0;
     for (int i = 0; i < scene.numSpheres; ++i) {
         if (raySphereTest(ray, scene.spheres[i], t)) {
-            if (index == -1 || t < minT) {
+            // if (index == -1 || t < minT) {
+            if (t < minT) {
                 index = i;
                 minT = t;
             }
@@ -46,72 +48,44 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
 
     float uu, vv;
     float3 invRayDir = 1.0f / ray.dir;
-    /*
-    for (int m = 0; m < scene.numMeshes; ++m) {
-        CudaMesh& mesh = scene.meshes[m];
-        int numTris = mesh.numTriangles;
-        for (int i = 0; i < numTris; ++i) {
-            if (rayTriangleTest(ray, mesh, mesh.triangles[i], t, uu, vv)) {
-                if (index == -1 || t < minT) {
-                    meshNum = m;
-                    index = i;
-                    type = 1;
-                    minT = t;
-                    u = uu; v = vv;
-                }
-            }
-        }
-    }
-    */
-    int stack[64];
+    int stack[32];
     for (int m = 0; m < scene.numMeshes; ++m) {
         CudaMesh& mesh = scene.meshes[m];
         BVH* bvh = mesh.bvh;
         int idx = 0;
+        // localStack[idx++] = 0;
         stack[idx++] = 0;
 
         while (idx) {
+            // int i = localStack[--idx];
             int i = stack[--idx];
             const BVH& node = bvh[i];
-            if (!RayAABBTest(ray.pos, invRayDir, node.min, node.max))
+            if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
 
             // if not a leaf node
             if (!node.isLeaf()) {
                 if (node.left)
                     stack[idx++] = node.left;
+                    // localStack[idx++] = node.left;
                 if (node.right)
                     stack[idx++] = node.right;
+                    // localStack[idx++] = node.right;
             } else { // if leaf
                 if (rayTriangleTest(ray, mesh, mesh.triangles[node.left], t, uu, vv)) {
-                    if (index == -1 || t < minT) {
+                    if (t < minT) {
                         meshNum = m; index = node.left; type = 1; minT = t; u = uu; v = vv;
                     }
                 }
                 if (node.numShapes == 2) {
                     if (rayTriangleTest(ray, mesh, mesh.triangles[node.right], t, uu, vv)) {
-                        if (index == -1 || t < minT) {
+                        if (t < minT) {
                             meshNum = m; index = node.right; type = 1; minT = t; u = uu; v = vv;
                         }
                     }
                 }
             }
         }
-
-        /*
-        int numTris = mesh.numTriangles;
-        for (int i = 0; i < numTris; ++i) {
-            if (rayTriangleTest(ray, mesh, mesh.triangles[i], t, uu, vv)) {
-                if (index == -1 || t < minT) {
-                    meshNum = m;
-                    index = i;
-                    type = 1;
-                    minT = t;
-                    u = uu; v = vv;
-                }
-            }
-        }
-        */
     }
 
     t = minT;
@@ -132,7 +106,7 @@ __device__ float3 computeLighting(const RTScene& scene, const RTMaterial& mat, c
     return color;
 }
 
-__device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
+__device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int* localStack) {
     if (item.depth >= 5)
         return make_float3(0, 0, 0);
 
@@ -140,7 +114,7 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene) {
     const Ray& ray = item.ray;
     int type, meshNum;
     float u, v;
-    int index = intersection(scene, ray, t, type, meshNum, u, v);
+    int index = intersection(scene, ray, t, type, meshNum, u, v, localStack);
     if (index == -1)
         return make_float3(0, 0, 0);
 
@@ -179,6 +153,11 @@ void rayTraceKernel(cudaSurfaceObject_t surface, int SW, int SH,
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
 
+    //
+    // __shared__ int stacks[32*BLOCK_SIZE*BLOCK_SIZE];
+    // int* localStack = &stacks[32 * (BLOCK_SIZE*threadIdx.y + threadIdx.x)];
+    int* localStack = NULL;
+
     if (x >= SW && y >= SH)
         return;
 
@@ -191,7 +170,7 @@ void rayTraceKernel(cudaSurfaceObject_t surface, int SW, int SH,
     float3 color = make_float3(0, 0, 0);
 
     while (Q.pop(item)) {
-        color += traceRay(Q, item, scene);
+        color += traceRay(Q, item, scene, localStack);
     }
 
     uchar4 pixel = toPixel(color);
@@ -280,7 +259,7 @@ void RayTracer::Render(Camera* camera) {
     DY = make_float3(-up.x, -up.y, -up.z);
     UL = make_float3(ul.x, ul.y, ul.z);
 
-    dim3 blockDim(16, 16, 1);
+    dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE, 1);
     dim3 gridDim;
     gridDim.x = SW / blockDim.x + ((SW % blockDim.x) != 0);
     gridDim.y = SH / blockDim.y + ((SH % blockDim.y) != 0);
