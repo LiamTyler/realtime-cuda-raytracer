@@ -3,6 +3,10 @@
 #include "common.h"
 #include "shapes.h"
 
+std::ostream& operator<<(std::ostream& out, const float3& v) {
+    return out << v.x << " " << v.y << " " << v.z;
+}
+
 std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& filename) {
     std::vector<std::pair<CudaMesh, RTMaterial>> list;
     std::ifstream in(filename, std::ios::binary);
@@ -14,6 +18,7 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
     int numMeshes;
     in.read((char*)&numMeshes, sizeof(int));
     list.resize(numMeshes);
+    std::cout << "num meshes: " << numMeshes << std::endl;
 
     // parse all of the materials
     for (int i = 0; i < numMeshes; ++i) {
@@ -23,13 +28,18 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
         in.read((char*)&mat.transmissive, sizeof(glm::vec3));
         in.read((char*)&mat.power, sizeof(float));
         in.read((char*)&mat.ior, sizeof(float));
+
+        std::cout << "KD = " << mat.kd << std::endl;
+        std::cout << "KS = " << mat.ks << std::endl;
+        std::cout << "KT = " << mat.transmissive << std::endl;
+        std::cout << "power = " << mat.power << std::endl;
+        std::cout << "ior = " << mat.ior << std::endl;
     }
 
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> normals;
     std::vector<Triangle> tris;
     std::vector<BVH> bvh;
-    std::cout << "size of bvh = " << sizeof(BVH) << std::endl;
 
     // parse all of the meshes
     for (int i = 0; i < numMeshes; ++i) {
@@ -39,6 +49,9 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
         in.read((char*)&numVerts, sizeof(unsigned int));
         in.read((char*)&numTris, sizeof(unsigned int));
         in.read((char*)&bvh_size, sizeof(unsigned int));
+        std::cout << "num verts = " << numVerts << std::endl;
+        std::cout << "num tris  = " << numTris << std::endl;
+        std::cout << "num bvhs  = " << bvh_size << std::endl;
 
         verts.resize(numVerts);
         normals.resize(numVerts);

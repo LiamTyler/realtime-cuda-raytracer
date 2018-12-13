@@ -42,13 +42,14 @@ typedef struct CudaMesh {
 
     __host__ CudaMesh() {}
     __host__ CudaMesh(const std::vector<glm::vec3>& verts,
-                      const std::vector<glm::vec3>& norms,
-                      const std::vector<Triangle>& tris,
-                      const std::vector<BVH>& _bvh,
-                      unsigned short m) {
+            const std::vector<glm::vec3>& norms,
+            const std::vector<Triangle>& tris,
+            const std::vector<BVH>& _bvh,
+            unsigned short m) {
         matID = m;
         numTriangles = tris.size();
 
+        std::cout << "sizeof float3 = " << sizeof(float3) << ", glm::Vec3 = " << sizeof(glm::vec3) << ", triangle = " << sizeof(Triangle) << ", BVH = " << sizeof(BVH) << std::endl;
         check(cudaMalloc((void**) &vertices, verts.size() * sizeof(float3)));
         check(cudaMemcpy(vertices, &verts[0].x, verts.size() * sizeof(float3), cudaMemcpyHostToDevice));
 
@@ -77,6 +78,7 @@ typedef struct CudaMesh {
         float3 n1, n2, n3;
         getNormals(triangles[index], n1, n2, n3);
 
+        // return (1.0f - u - v) * n1 + u * n2 + v * n3;
         return u * n1 + v * n2 + (1.0f - u - v) * n3;
     }
 
@@ -130,12 +132,12 @@ __device__ bool rayTriangleTest(
     float3 N = cross(e12, e13);
 
     float NdotRay = dot(ray.dir, N);
-    if (NdotRay < 0.0001)
+    if (NdotRay < 0.0001f)
         return false;
 
     float d = dot(v1, N);
     t = -(dot(ray.pos, N) - d) / NdotRay;
-    if (t < 0)
+    if (t < 0.0f)
         return false;
 
     float3 P = ray.eval(t);
@@ -144,19 +146,19 @@ __device__ bool rayTriangleTest(
 
     vp      = P - v1;
     vpCross = cross(e12, vp);
-    if (dot(vpCross, N) < 0)
+    if (dot(vpCross, N) < 0.0f)
         return false;
 
     vp      = P - v2;
     vpCross = cross(v3 - v2, vp);
-    if (dot(vpCross, N) < 0)
+    if (dot(vpCross, N) < 0.0f)
         return false;
 
     u = 0.5f * length(vpCross) / area;
 
     vp      = P - v3;
     vpCross = cross(v1 - v3, vp);
-    if (dot(vpCross, N) < 0)
+    if (dot(vpCross, N) < 0.0f)
         return false;
 
     v = 0.5f * length(vpCross) / area;
@@ -164,7 +166,43 @@ __device__ bool rayTriangleTest(
     return true;
 }
 
-__device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3& min, const float3& max) {
+__device__ bool rayTriangleTest2(
+        const Ray& ray,
+        const CudaMesh& mesh,
+        const Triangle& triangle,
+        float& t,
+        float& u,
+        float& v)
+{
+    float3 v0, v1, v2;
+    mesh.getVertices(triangle, v0, v1, v2);
+    const float EPSILON = 0.00001f;
+
+    float3 v0v1 = v1 - v0;
+    float3 v0v2 = v2 - v0;
+    float3 pvec = cross(ray.dir, v0v2);
+    float det = dot(v0v1, pvec);
+    // ray and triangle are parallel if det is close to 0
+    if (-EPSILON < det && det < EPSILON) return false;
+    float invDet = 1.0f / det;
+
+    float3 tvec = ray.pos - v0;
+    u = dot(tvec, pvec) * invDet;
+    if (u < 0.0f || u > 1.0f) return false;
+
+    float3 qvec = cross(tvec, v0v1);
+    v = dot(ray.dir, qvec) * invDet;
+    if (v < 0.0f || u + v > 1.0f) return false;
+
+    t = dot(v0v2, qvec) * invDet;
+
+    if (t > EPSILON) // ray intersection
+        return true;
+    else // This means that there is a line intersection but not a ray intersection.
+        return false;
+}
+
+__device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3& min, const float3& max, const float& t) {
     float tmin = (min.x - p.x) * invDir.x;
     float tmax = (max.x - p.x) * invDir.x;
     float tmp;
@@ -196,30 +234,30 @@ __device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3&
     if ((tmin > tzmax) || (tzmin > tmax))
         return false;
 
-    return true;
-
+    // return true;
+    return tmax >= fmaxf(0.0f, tmin) && tmin < t;
 }
 
 __device__ bool RayAABBTest2(const float3& p, const float3& invDir, const float3& min, const float3& max, const float& t) {
-  float tx1 = (min.x - p.x)*invDir.x;
-  float tx2 = (max.x - p.x)*invDir.x;
+    float tx1 = (min.x - p.x)*invDir.x;
+    float tx2 = (max.x - p.x)*invDir.x;
 
-  float tmin = fminf(tx1, tx2);
-  float tmax = fmaxf(tx1, tx2);
+    float tmin = fminf(tx1, tx2);
+    float tmax = fmaxf(tx1, tx2);
 
-  float ty1 = (min.y - p.y)*invDir.y;
-  float ty2 = (max.y - p.y)*invDir.y;
+    float ty1 = (min.y - p.y)*invDir.y;
+    float ty2 = (max.y - p.y)*invDir.y;
 
-  tmin = fmaxf(tmin, fminf(ty1, ty2));
-  tmax = fminf(tmax, fmaxf(ty1, ty2));
+    tmin = fmaxf(tmin, fminf(ty1, ty2));
+    tmax = fminf(tmax, fmaxf(ty1, ty2));
 
-  float tz1 = (min.z - p.z)*invDir.z;
-  float tz2 = (max.z - p.z)*invDir.z;
+    float tz1 = (min.z - p.z)*invDir.z;
+    float tz2 = (max.z - p.z)*invDir.z;
 
-  tmin = fmaxf(tmin, fminf(tz1, tz2));
-  tmax = fminf(tmax, fmaxf(tz1, tz2));
+    tmin = fmaxf(tmin, fminf(tz1, tz2));
+    tmax = fminf(tmax, fmaxf(tz1, tz2));
 
-  return tmax >= fmaxf(0.0f, tmin) && tmin < t;
+    return tmax >= fmaxf(0.0f, tmin) && tmin < t;
 }
 
 #endif

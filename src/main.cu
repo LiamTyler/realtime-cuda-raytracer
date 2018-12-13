@@ -65,6 +65,8 @@ int main(int argc, char* argv[]) {
 
     Window::SetRelativeMouse(true);
     PG::Input::PollEvents();
+    double totalDuration = 0;
+    int frames = 0;
     while (!PG::EngineShutdown) {
         PG::Window::StartFrame();
         PG::Input::PollEvents();
@@ -75,9 +77,15 @@ int main(int argc, char* argv[]) {
         // scene->Update();
         camera->Update();
 
+        auto t = PG::Time::getTimePoint();
         rayTracer.Render(camera);
 
         PG::Window::EndFrame();
+
+        auto dur = PG::Time::getDuration(t);
+        totalDuration += dur;
+        ++frames;
+        PG::Window::setTitle("Ray Tracer -- " + std::to_string(totalDuration / frames));
     }
 
     rayTracer.Free();

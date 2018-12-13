@@ -4,7 +4,7 @@ filename ../../../rayTraceResources.txt
 
 Camera
 name main-camera
-position 0 0 10
+position 0 0 5 
 rotation 0 0 0
 scale 1 1 1
 fov 45
@@ -24,13 +24,15 @@ GameObject
 name cube
 position 0 5 0
 rtinfo
-#model cube.rtModel
-model dragon.rtModel
+#model cube2.rtModel
+#model teapot.rtModel
+#model dragon.rtModel
+model buddha.rtModel
 material red
 
-GameObject
-name cube2
-position -5 0 0
-rtinfo
-sphere 2
-material green
+#GameObject
+#name cube2
+#position -5 0 0
+#rtinfo
+#sphere 2
+#material green

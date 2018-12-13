@@ -38,39 +38,46 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
     type = 0;
     for (int i = 0; i < scene.numSpheres; ++i) {
         if (raySphereTest(ray, scene.spheres[i], t)) {
-            // if (index == -1 || t < minT) {
             if (t < minT) {
                 index = i;
                 minT = t;
             }
         }
     }
+    float uu, vv;
+    for (int m = 0; m < scene.numMeshes; ++m) {
+        CudaMesh& mesh = scene.meshes[m];
+        for (int i = 0; i < mesh.numTriangles; ++i) {
+            if (rayTriangleTest(ray, mesh, mesh.triangles[i], t, uu, vv)) {
+                if (t < minT) {
+                    meshNum = m; index = i; type = 1; minT = t; u = uu; v = vv;
+                }
+            }
+        }
+    }
 
+    /*
     float uu, vv;
     float3 invRayDir = 1.0f / ray.dir;
-    int stack[32];
+    int stack[64];
     for (int m = 0; m < scene.numMeshes; ++m) {
         CudaMesh& mesh = scene.meshes[m];
         BVH* bvh = mesh.bvh;
         int idx = 0;
-        // localStack[idx++] = 0;
         stack[idx++] = 0;
 
         while (idx) {
-            // int i = localStack[--idx];
             int i = stack[--idx];
             const BVH& node = bvh[i];
-            if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
+            if (!RayAABBTest(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
 
             // if not a leaf node
             if (!node.isLeaf()) {
                 if (node.left)
                     stack[idx++] = node.left;
-                    // localStack[idx++] = node.left;
                 if (node.right)
                     stack[idx++] = node.right;
-                    // localStack[idx++] = node.right;
             } else { // if leaf
                 if (rayTriangleTest(ray, mesh, mesh.triangles[node.left], t, uu, vv)) {
                     if (t < minT) {
@@ -87,6 +94,7 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
             }
         }
     }
+    */
 
     t = minT;
     return index;
@@ -129,6 +137,8 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int
         matID = s.matID;
     } else { // triangle
         n = scene.meshes[meshNum].getNormal(index, u, v);
+        // if (dot(n, ray.dir) > 0)
+        //     n = -n;
         matID = scene.meshes[meshNum].matID;
     }
     const RTMaterial& mat = scene.materials[matID];
