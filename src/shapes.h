@@ -61,6 +61,16 @@ typedef struct CudaMesh {
 
         check(cudaMalloc((void**) &bvh, _bvh.size() * sizeof(BVH)));
         check(cudaMemcpy(bvh, &_bvh[0], _bvh.size() * sizeof(BVH), cudaMemcpyHostToDevice));
+
+        /*
+        tex.normalized = false;                      // access with normalized texture coordinates
+		tex.filterMode = cudaFilterModePoint;        // Point mode, so no 
+		tex.addressMode[0] = cudaAddressModeWrap;    // wrap texture coordinates
+
+		size_t size = sizeof(BVH)*_bvh.size();
+		cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int>();
+		cudaBindTexture(0, tex, bvh, channelDesc, size);
+        */
     }
 
     __device__ void getVertices(const Triangle& t, float3& v1, float3& v2, float3& v3) const {
@@ -78,8 +88,8 @@ typedef struct CudaMesh {
         float3 n1, n2, n3;
         getNormals(triangles[index], n1, n2, n3);
 
-        // return (1.0f - u - v) * n1 + u * n2 + v * n3;
-        return u * n1 + v * n2 + (1.0f - u - v) * n3;
+        return (1.0f - u - v) * n1 + u * n2 + v * n3;
+        // return u * n1 + v * n2 + (1.0f - u - v) * n3;
     }
 
     float3* vertices;
@@ -88,6 +98,7 @@ typedef struct CudaMesh {
     BVH* bvh;
     unsigned short matID;
     int numTriangles;
+    // texture<int, 1, cudaReadModeElementType> tex;
 } CudaMesh;
 
 
@@ -132,7 +143,7 @@ __device__ bool rayTriangleTest(
     float3 N = cross(e12, e13);
 
     float NdotRay = dot(ray.dir, N);
-    if (NdotRay < 0.0001f)
+    if (NdotRay < EPSILON)
         return false;
 
     float d = dot(v1, N);
@@ -176,7 +187,6 @@ __device__ bool rayTriangleTest2(
 {
     float3 v0, v1, v2;
     mesh.getVertices(triangle, v0, v1, v2);
-    const float EPSILON = 0.00001f;
 
     float3 v0v1 = v1 - v0;
     float3 v0v2 = v2 - v0;

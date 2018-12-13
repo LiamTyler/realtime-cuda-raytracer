@@ -2,6 +2,7 @@
 #define COMMON_H_
 
 #define GLM_FORCE_PURE
+#define EPSILON 0.0000000001f
 
 #include "progression.h"
 #include <iostream>

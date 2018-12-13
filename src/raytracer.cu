@@ -44,6 +44,8 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
             }
         }
     }
+
+    /*
     float uu, vv;
     for (int m = 0; m < scene.numMeshes; ++m) {
         CudaMesh& mesh = scene.meshes[m];
@@ -55,8 +57,8 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
             }
         }
     }
+    */
 
-    /*
     float uu, vv;
     float3 invRayDir = 1.0f / ray.dir;
     int stack[64];
@@ -69,7 +71,7 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
         while (idx) {
             int i = stack[--idx];
             const BVH& node = bvh[i];
-            if (!RayAABBTest(ray.pos, invRayDir, node.min, node.max, minT))
+            if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
 
             // if not a leaf node
@@ -84,7 +86,7 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                         meshNum = m; index = node.left; type = 1; minT = t; u = uu; v = vv;
                     }
                 }
-                if (node.numShapes == 2) {
+                if (node.numShapes > 1) {
                     if (rayTriangleTest(ray, mesh, mesh.triangles[node.right], t, uu, vv)) {
                         if (t < minT) {
                             meshNum = m; index = node.right; type = 1; minT = t; u = uu; v = vv;
@@ -94,7 +96,6 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
             }
         }
     }
-    */
 
     t = minT;
     return index;
