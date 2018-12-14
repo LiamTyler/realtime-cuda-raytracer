@@ -62,17 +62,16 @@ typedef struct CudaMesh {
         check(cudaMalloc((void**) &bvh, _bvh.size() * sizeof(BVH)));
         check(cudaMemcpy(bvh, &_bvh[0], _bvh.size() * sizeof(BVH), cudaMemcpyHostToDevice));
 
-        std::cout << "sizeof BVH = " << sizeof(BVH) << std::endl;
         // Specify texture
         cudaResourceDesc resDesc;
         memset(&resDesc, 0, sizeof(resDesc));
         resDesc.resType = cudaResourceTypeLinear;
-        resDesc.res.linear.devPtr = bvh;
         resDesc.res.linear.desc.f = cudaChannelFormatKindFloat;
-        resDesc.res.linear.desc.x = 32; // bits per channel
-        resDesc.res.linear.desc.y = 32; // bits per channel
-        resDesc.res.linear.desc.z = 32; // bits per channel
-        resDesc.res.linear.desc.w = 32; // bits per channel
+        resDesc.res.linear.desc.x = 32;
+        resDesc.res.linear.desc.y = 32;
+        resDesc.res.linear.desc.z = 32;
+        resDesc.res.linear.desc.w = 32;
+        resDesc.res.linear.devPtr = bvh;
         resDesc.res.linear.sizeInBytes = _bvh.size() * sizeof(BVH);
 
         // Specify texture object parameters
@@ -80,9 +79,8 @@ typedef struct CudaMesh {
         memset(&texDesc, 0, sizeof(texDesc));
         texDesc.readMode = cudaReadModeElementType;
 
-        // Create texture object
-        check(cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL));
-
+        // Create texture objects
+        check(cudaCreateTextureObject(&bvhTex, &resDesc, &texDesc, NULL));
     }
 
     __device__ void getVertices(const Triangle& t, float3& v1, float3& v2, float3& v3) const {
@@ -110,7 +108,7 @@ typedef struct CudaMesh {
     BVH* bvh;
     unsigned short matID;
     int numTriangles;
-    cudaTextureObject_t tex;
+    cudaTextureObject_t bvhTex, vertTex, normTex, triTex;
 } CudaMesh;
 
 
