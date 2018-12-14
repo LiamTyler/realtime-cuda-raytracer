@@ -70,7 +70,15 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
 
         while (idx) {
             int i = stack[--idx];
-            const BVH& node = bvh[i];
+            // BVH node = bvh[i];
+            BVH node;
+            float4 f1  = tex1Dfetch<float4>(mesh.tex, 2 * i + 0);
+            float4 f2  = tex1Dfetch<float4>(mesh.tex, 2 * i + 1);
+            node.min   = make_float3(f1.x, f1.y, f1.z);
+            node.max   = make_float3(f2.x, f2.y, f2.z);
+            node.left  = *(int*) &f1.w;
+            node.right = *(int*) &f2.w;
+            
             if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
 
@@ -81,15 +89,15 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                 if (node.right)
                     stack[idx++] = node.right;
             } else { // if leaf
-                if (rayTriangleTest(ray, mesh, mesh.triangles[node.left], t, uu, vv)) {
+                if (rayTriangleTest2(ray, mesh, mesh.triangles[-node.left], t, uu, vv)) {
                     if (t < minT) {
-                        meshNum = m; index = node.left; type = 1; minT = t; u = uu; v = vv;
+                        meshNum = m; index = -node.left; type = 1; minT = t; u = uu; v = vv;
                     }
                 }
-                if (node.numShapes > 1) {
-                    if (rayTriangleTest(ray, mesh, mesh.triangles[node.right], t, uu, vv)) {
+                if (node.right < 0) {
+                    if (rayTriangleTest2(ray, mesh, mesh.triangles[-node.right], t, uu, vv)) {
                         if (t < minT) {
-                            meshNum = m; index = node.right; type = 1; minT = t; u = uu; v = vv;
+                            meshNum = m; index = -node.right; type = 1; minT = t; u = uu; v = vv;
                         }
                     }
                 }

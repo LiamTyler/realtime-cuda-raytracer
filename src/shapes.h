@@ -29,13 +29,13 @@ typedef struct Triangle {
 } Triangle;
 
 typedef struct BVH {
-    int numShapes;
-    int left;
-    int right;
+    //int numShapes;
     float3 min;
+    int left;
     float3 max;
+    int right;
 
-    __device__ bool isLeaf() const { return numShapes != 0; }
+    __device__ bool isLeaf() const { return left < 0; }
 } BVH;
 
 typedef struct CudaMesh {
@@ -62,15 +62,27 @@ typedef struct CudaMesh {
         check(cudaMalloc((void**) &bvh, _bvh.size() * sizeof(BVH)));
         check(cudaMemcpy(bvh, &_bvh[0], _bvh.size() * sizeof(BVH), cudaMemcpyHostToDevice));
 
-        /*
-        tex.normalized = false;                      // access with normalized texture coordinates
-		tex.filterMode = cudaFilterModePoint;        // Point mode, so no 
-		tex.addressMode[0] = cudaAddressModeWrap;    // wrap texture coordinates
+        std::cout << "sizeof BVH = " << sizeof(BVH) << std::endl;
+        // Specify texture
+        cudaResourceDesc resDesc;
+        memset(&resDesc, 0, sizeof(resDesc));
+        resDesc.resType = cudaResourceTypeLinear;
+        resDesc.res.linear.devPtr = bvh;
+        resDesc.res.linear.desc.f = cudaChannelFormatKindFloat;
+        resDesc.res.linear.desc.x = 32; // bits per channel
+        resDesc.res.linear.desc.y = 32; // bits per channel
+        resDesc.res.linear.desc.z = 32; // bits per channel
+        resDesc.res.linear.desc.w = 32; // bits per channel
+        resDesc.res.linear.sizeInBytes = _bvh.size() * sizeof(BVH);
 
-		size_t size = sizeof(BVH)*_bvh.size();
-		cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int>();
-		cudaBindTexture(0, tex, bvh, channelDesc, size);
-        */
+        // Specify texture object parameters
+        struct cudaTextureDesc texDesc;
+        memset(&texDesc, 0, sizeof(texDesc));
+        texDesc.readMode = cudaReadModeElementType;
+
+        // Create texture object
+        check(cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL));
+
     }
 
     __device__ void getVertices(const Triangle& t, float3& v1, float3& v2, float3& v3) const {
@@ -98,7 +110,7 @@ typedef struct CudaMesh {
     BVH* bvh;
     unsigned short matID;
     int numTriangles;
-    // texture<int, 1, cudaReadModeElementType> tex;
+    cudaTextureObject_t tex;
 } CudaMesh;
 
 
