@@ -90,17 +90,13 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                     stack[idx++] = node.right;
             } else { // if leaf
                 Triangle leftTri = mesh.triangles[-node.left];
-                if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv)) {
-                    if (t < minT) {
-                        meshNum = m; index = -node.left; type = 1; minT = t; u = uu; v = vv;
-                    }
+                if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv, minT)) {
+                    meshNum = m; index = -node.left; type = 1; minT = t; u = uu; v = vv;
                 }
                 if (node.right < 0) {
                     Triangle rightTri = mesh.triangles[-node.right];
-                    if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv)) {
-                        if (t < minT) {
-                            meshNum = m; index = -node.right; type = 1; minT = t; u = uu; v = vv;
-                        }
+                    if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv, minT)) {
+                        meshNum = m; index = -node.right; type = 1; minT = t; u = uu; v = vv;
                     }
                 }
             }

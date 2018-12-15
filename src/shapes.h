@@ -23,9 +23,19 @@ typedef struct Sphere {
 typedef struct Triangle {
     __host__ __device__ Triangle() {}
 
-    __host__ __device__ Triangle(int a, int b, int c) : v1(a), v2(b), v3(c) {}
+    __device__ void getVerts(float3& v1, float3& v2, float3& v3) const {
+        v1 = make_float3(f1.x, f1.y, f1.z);
+        v2 = make_float3(f1.w, f2.x, f2.y);
+        v3 = make_float3(f2.z, f2.w, f3.x);
+    }
 
-    int v1, v2, v3;
+    __device__ void getNormals(float3& n1, float3& n2, float3& n3) const {
+        n1 = make_float3(f3.y, f3.z, f3.w);
+        n2 = make_float3(f4.x, f4.y, f4.z);
+        n3 = make_float3(f4.w, f5.x, f5.y);
+    }
+
+    float4 f1, f2, f3, f4, f5;
 } Triangle;
 
 typedef struct BVH {
@@ -41,20 +51,12 @@ typedef struct BVH {
 typedef struct CudaMesh {
 
     __host__ CudaMesh() {}
-    __host__ CudaMesh(const std::vector<glm::vec3>& verts,
-            const std::vector<glm::vec3>& norms,
+    __host__ CudaMesh(
             const std::vector<Triangle>& tris,
             const std::vector<BVH>& _bvh,
             unsigned short m) {
         matID = m;
         numTriangles = tris.size();
-
-        std::cout << "sizeof float3 = " << sizeof(float3) << ", glm::Vec3 = " << sizeof(glm::vec3) << ", triangle = " << sizeof(Triangle) << ", BVH = " << sizeof(BVH) << std::endl;
-        check(cudaMalloc((void**) &vertices, verts.size() * sizeof(float3)));
-        check(cudaMemcpy(vertices, &verts[0].x, verts.size() * sizeof(float3), cudaMemcpyHostToDevice));
-
-        check(cudaMalloc((void**) &normals, norms.size() * sizeof(float3)));
-        check(cudaMemcpy(normals, &norms[0].x, norms.size() * sizeof(float3), cudaMemcpyHostToDevice));
 
         check(cudaMalloc((void**) &triangles, tris.size() * sizeof(Triangle)));
         check(cudaMemcpy(triangles, &tris[0], tris.size() * sizeof(Triangle), cudaMemcpyHostToDevice));
@@ -83,32 +85,21 @@ typedef struct CudaMesh {
         check(cudaCreateTextureObject(&bvhTex, &resDesc, &texDesc, NULL));
     }
 
-    __device__ void getVertices(const Triangle& t, float3& v1, float3& v2, float3& v3) const {
-        v1 = vertices[t.v1];
-        v2 = vertices[t.v2];
-        v3 = vertices[t.v3];
-    }
-    __device__ void getNormals(const Triangle& t, float3& n1, float3& n2, float3& n3) const {
-        n1 = normals[t.v1];
-        n2 = normals[t.v2];
-        n3 = normals[t.v3];
-    }
-
     __device__ float3 getNormal(int index, float u, float v) const {
         float3 n1, n2, n3;
-        getNormals(triangles[index], n1, n2, n3);
+        triangles[index].getNormals(n1, n2, n3);
 
         return (1.0f - u - v) * n1 + u * n2 + v * n3;
         // return u * n1 + v * n2 + (1.0f - u - v) * n3;
     }
 
-    float3* vertices;
-    float3* normals;
+    // float3* vertices;
+    // float3* normals;
     Triangle* triangles;
     BVH* bvh;
     unsigned short matID;
     int numTriangles;
-    cudaTextureObject_t bvhTex, vertTex, normTex, triTex;
+    cudaTextureObject_t bvhTex, triTex;
 } CudaMesh;
 
 
@@ -146,7 +137,7 @@ __device__ bool rayTriangleTest(
         float& v)
 {
     float3 v1, v2, v3;
-    mesh.getVertices(triangle, v1, v2, v3);
+    triangle.getVerts(v1, v2, v3);
 
     float3 e12 = v2 - v1;
     float3 e13 = v3 - v1;
@@ -193,10 +184,11 @@ __device__ bool rayTriangleTest2(
         const Triangle& triangle,
         float& t,
         float& u,
-        float& v)
+        float& v,
+        const float& minT)
 {
     float3 v0, v1, v2;
-    mesh.getVertices(triangle, v0, v1, v2);
+    triangle.getVerts(v0, v1, v2);
 
     float3 v0v1 = v1 - v0;
     float3 v0v2 = v2 - v0;
@@ -215,11 +207,7 @@ __device__ bool rayTriangleTest2(
     if (v < 0.0f || u + v > 1.0f) return false;
 
     t = dot(v0v2, qvec) * invDet;
-
-    if (t > EPSILON) // ray intersection
-        return true;
-    else // This means that there is a line intersection but not a ray intersection.
-        return false;
+    return t < minT && t > EPSILON;
 }
 
 __device__ bool RayAABBTest(const float3& p, const float3& invDir, const float3& min, const float3& max, const float& t) {

@@ -24,10 +24,10 @@ GameObject
 name cube
 position 0 5 0
 rtinfo
-#model cube.rtModel
-#model teapot.rtModel
-model dragon.rtModel
-#model buddha.rtModel
+#model cube2.rtModel
+#model teapot2.rtModel
+#model dragon2.rtModel
+model buddha2.rtModel
 material red
 
 #GameObject
