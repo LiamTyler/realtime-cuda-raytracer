@@ -92,7 +92,7 @@ typedef struct Ray {
 
 } Ray;
 
-__device__ bool raySphereTest(const Ray& ray, const Sphere& sphere, float& t) {
+__device__ bool raySphereTest(const Ray& ray, const Sphere& sphere, float& t, const float& minT) {
     float3 OC = sphere.pos - ray.pos;
     float b = dot(ray.dir, OC);
     float disc = b*b - dot(OC, OC) + sphere.radius * sphere.radius;
@@ -102,7 +102,7 @@ __device__ bool raySphereTest(const Ray& ray, const Sphere& sphere, float& t) {
     t = b - disc;
     if (t < 0)
         t = b + disc;
-    return t >= 0;
+    return t >= 0 && t < minT;
 }
 
 __device__ bool rayTriangleTest(

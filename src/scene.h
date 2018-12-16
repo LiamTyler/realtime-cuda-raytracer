@@ -74,10 +74,10 @@ RTScene createRTSceneFromPGScene(Scene& pgScene) {
         auto rtc = g->GetComponent<RTInfo>();
         RTObject obj;
         obj.type = rtc->type;
+        const auto& p = g->transform.position;
+        obj.position = make_float3(p.x, p.y, p.z);
         if (obj.type == 0) {
-            const auto& p = g->transform.position;
-            float3 pos = make_float3(p.x, p.y, p.z);
-            spheres.emplace_back(pos, rtc->radius, getMatID(rtc->matName, materials, matNames));
+            spheres.emplace_back(obj.position, rtc->radius, getMatID(rtc->matName, materials, matNames));
         } else {
             const auto& list =  loadRTModel(PG_ROOT_DIR "../../" + rtc->modelName);
             if (list.size() != 1) {

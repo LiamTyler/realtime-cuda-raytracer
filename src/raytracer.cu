@@ -35,6 +35,46 @@ __device__
 int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int& meshNum, float& u, float& v, int* localStack) {
     float minT = 1e30f;
     int index = -1;
+    float uu, vv;
+    float3 invRayDir = 1.0f / ray.dir;
+    int stack[64];
+    for (int m = 0; m < scene.numObjects; ++m) {
+        int sIdx = scene.objects[m].index;
+        if (scene.objects[m].type == 0) {
+            if (raySphereTest(ray, scene.spheres[sIdx], t, minT)) {
+                index = sIdx; minT = t; type = 0;
+            }
+        } else {
+            CudaMesh& mesh = scene.meshes[sIdx];
+            Ray tmpRay = Ray(ray.pos - scene.objects[m].position, ray.dir);
+            BVH* bvh = mesh.bvh;
+            int idx = 0;
+            stack[idx++] = 0;
+
+            while (idx) {
+                int i = stack[--idx];
+                BVH node = bvh[i];
+                
+                if (!RayAABBTest2(tmpRay.pos, invRayDir, node.min, node.max, minT))
+                    continue;
+
+                // if not a leaf node
+                if (!node.isLeaf()) {
+                    if (node.left)
+                        stack[idx++] = node.left;
+                    if (node.right)
+                        stack[idx++] = node.right;
+                } else { // if leaf
+                    for (int tri = -node.left - 1; tri < node.right; ++tri) {
+                        if (rayTriangleTest2(tmpRay, mesh, mesh.triangles[tri], t, uu, vv, minT)) {
+                            meshNum = sIdx; index = tri; type = 1; minT = t; u = uu; v = vv;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    /*
     type = 0;
     for (int i = 0; i < scene.numSpheres; ++i) {
         if (raySphereTest(ray, scene.spheres[i], t)) {
@@ -45,25 +85,24 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
         }
     }
 
-    /*
-    float uu, vv;
-    for (int m = 0; m < scene.numMeshes; ++m) {
-        CudaMesh& mesh = scene.meshes[m];
-        for (int i = 0; i < mesh.numTriangles; ++i) {
-            if (rayTriangleTest(ray, mesh, mesh.triangles[i], t, uu, vv)) {
-                if (t < minT) {
-                    meshNum = m; index = i; type = 1; minT = t; u = uu; v = vv;
-                }
-            }
-        }
-    }
-    */
+    // float uu, vv;
+    // for (int m = 0; m < scene.numMeshes; ++m) {
+    //     CudaMesh& mesh = scene.meshes[m];
+    //     for (int i = 0; i < mesh.numTriangles; ++i) {
+    //         if (rayTriangleTest(ray, mesh, mesh.triangles[i], t, uu, vv)) {
+    //             if (t < minT) {
+    //                 meshNum = m; index = i; type = 1; minT = t; u = uu; v = vv;
+    //             }
+    //         }
+    //     }
+    // }
 
     float uu, vv;
     float3 invRayDir = 1.0f / ray.dir;
     int stack[64];
-    for (int m = 0; m < scene.numMeshes; ++m) {
-        CudaMesh& mesh = scene.meshes[m];
+    for (int m = 0; m < scene.numObjects; ++m) {
+    // for (int m = 0; m < scene.numMeshes; ++m) {
+        CudaMesh& mesh = scene.meshes[scene.objectsm];
         BVH* bvh = mesh.bvh;
         int idx = 0;
         stack[idx++] = 0;
@@ -90,6 +129,7 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
             }
         }
     }
+    */
 
     t = minT;
     return index;
@@ -168,12 +208,6 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int
         QItem refractItem(refractRay, refractMult, item.depth + 1);
         Q.push(refractItem);
     }
-
-    // r = normalize(glm::refract(I, N, ratio));
-    // Ray transmissive(p + 0.001f * r, r);
-    // transmissiveColor = m->getTransmissive() * vec3(TraceRay(transmissive, depth + 1));
-
-    // color += reflectColor * kr + transmissiveColor * (1 - kr);
 
     return color;
 }
