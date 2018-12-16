@@ -27,7 +27,7 @@ rtinfo
 #model cube2.rtModel
 #model teapot2.rtModel
 #model dragon2.rtModel
-model buddha2.rtModel
+model buddha3.rtModel
 material red
 
 #GameObject

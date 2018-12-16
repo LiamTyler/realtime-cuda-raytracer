@@ -89,6 +89,7 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                 if (node.right)
                     stack[idx++] = node.right;
             } else { // if leaf
+                /*
                 Triangle leftTri = mesh.triangles[-node.left];
                 if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv, minT)) {
                     meshNum = m; index = -node.left; type = 1; minT = t; u = uu; v = vv;
@@ -97,6 +98,28 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                     Triangle rightTri = mesh.triangles[-node.right];
                     if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv, minT)) {
                         meshNum = m; index = -node.right; type = 1; minT = t; u = uu; v = vv;
+                    }
+                }
+                */
+
+                /*
+                int lT = -node.left - 1;
+                Triangle leftTri = mesh.triangles[lT];
+                if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv, minT)) {
+                    meshNum = m; index = lT; type = 1; minT = t; u = uu; v = vv;
+                }
+                ++lT;
+                if (node.right != lT) {
+                    Triangle rightTri = mesh.triangles[lT];
+                    if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv, minT)) {
+                        meshNum = m; index = lT; type = 1; minT = t; u = uu; v = vv;
+                    }
+                }
+                */
+
+                for (int tri = -node.left - 1; tri < node.right; ++tri) {
+                    if (rayTriangleTest2(ray, mesh, mesh.triangles[tri], t, uu, vv, minT)) {
+                        meshNum = m; index = tri; type = 1; minT = t; u = uu; v = vv;
                     }
                 }
             }
