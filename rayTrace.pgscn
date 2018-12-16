@@ -24,12 +24,19 @@ bottom skybox/water/bottom.jpg
 front skybox/water/front.jpg
 back skybox/water/back.jpg
 
-Light
+#Light
 name mainDirectional
 type directional
 color 1 1 1
 intensity 1
 rotation -35 -40 0
+
+Light
+name mainDirectional
+type directional
+color 1 1 1
+intensity 1
+rotation -30 210 0
 
 GameObject
 name cube
@@ -42,13 +49,24 @@ model dragon.rtModel
 material glass
 
 GameObject
+name cube
+position 0 0 0
+rtinfo
+model buddha.rtModel
+material mirror
+
+GameObject
 name cube2
 position 5 0 0
 rtinfo
 model cube.rtModel
-#model teapot.rtModel
-#model dragon.rtModel
-#model buddha.rtModel
+material red
+
+GameObject
+name cube3
+position 5 0 2.5
+rtinfo
+model cube.rtModel
 material red
 
 GameObject
