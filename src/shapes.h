@@ -82,7 +82,7 @@ typedef struct CudaMesh {
         texDesc.readMode = cudaReadModeElementType;
 
         // Create texture objects
-        check(cudaCreateTextureObject(&bvhTex, &resDesc, &texDesc, NULL));
+        // check(cudaCreateTextureObject(&bvhTex, &resDesc, &texDesc, NULL));
     }
 
     __device__ float3 getNormal(int index, float u, float v) const {
@@ -134,7 +134,8 @@ __device__ bool rayTriangleTest(
         const Triangle& triangle,
         float& t,
         float& u,
-        float& v)
+        float& v,
+        const float& minT)
 {
     float3 v1, v2, v3;
     triangle.getVerts(v1, v2, v3);
@@ -149,7 +150,7 @@ __device__ bool rayTriangleTest(
 
     float d = dot(v1, N);
     t = -(dot(ray.pos, N) - d) / NdotRay;
-    if (t < 0.0f)
+    if (t < 0.0f || t > minT)
         return false;
 
     float3 P = ray.eval(t);

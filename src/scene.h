@@ -4,6 +4,7 @@
 #include "shapes.h"
 #include "material.h"
 #include "resource_loader.h"
+#include "skybox.h"
 #include <algorithm>
 
 typedef struct RTObject {
@@ -37,6 +38,7 @@ typedef struct RTScene {
     int numSpheres;
     int numMeshes;
     int numObjects;
+    RTSkybox skybox;
 } RTScene;
 
 int getMatID(const std::string& name, std::vector<RTMaterial>& mats, std::vector<std::string>& matNames) {
@@ -96,6 +98,14 @@ RTScene createRTSceneFromPGScene(Scene& pgScene) {
         }
 
         objects.push_back(obj);
+    }
+
+    auto bc = pgScene.GetBackgroundColor();
+    std::cout << "bg color = " << bc << std::endl;
+    scene.skybox.bgColor = make_float3(bc.x, bc.y, bc.z);
+    auto si = pgScene.getRTSkybox();
+    if (si.left != "") {
+        scene.skybox = RTSkybox(si.left, si.right, si.top, si.bottom, si.front, si.back);
     }
 
     // parse lights

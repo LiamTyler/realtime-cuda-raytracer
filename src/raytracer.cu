@@ -70,14 +70,14 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
 
         while (idx) {
             int i = stack[--idx];
-            // BVH node = bvh[i];
-            BVH node;
-            float4 f1  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 0);
-            float4 f2  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 1);
-            node.min   = make_float3(f1.x, f1.y, f1.z);
-            node.max   = make_float3(f2.x, f2.y, f2.z);
-            node.left  = *(int*) &f1.w;
-            node.right = *(int*) &f2.w;
+            BVH node = bvh[i];
+            // BVH node;
+            // float4 f1  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 0);
+            // float4 f2  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 1);
+            // node.min   = make_float3(f1.x, f1.y, f1.z);
+            // node.max   = make_float3(f2.x, f2.y, f2.z);
+            // node.left  = *(int*) &f1.w;
+            // node.right = *(int*) &f2.w;
             
             if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
@@ -154,7 +154,7 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int
     float u, v;
     int index = intersection(scene, ray, t, type, meshNum, u, v, localStack);
     if (index == -1)
-        return make_float3(0, 0, 0);
+        return scene.skybox.getColor(ray.dir);
 
     float3 color = make_float3(0, 0, 0);
     float3 p = ray.eval(t);

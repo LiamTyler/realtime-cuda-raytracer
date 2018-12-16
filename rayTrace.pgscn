@@ -13,6 +13,17 @@ near-plane .1
 far-plane 300
 primary-camera true
 
+BackgroundColor
+0 1 0 1
+
+RTSkybox
+right skybox/water/right.jpg
+left skybox/water/left.jpg
+top skybox/water/top.jpg
+bottom skybox/water/bottom.jpg
+front skybox/water/front.jpg
+back skybox/water/back.jpg
+
 Light
 name mainDirectional
 type directional
