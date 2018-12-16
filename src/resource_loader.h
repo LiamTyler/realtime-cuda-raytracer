@@ -45,7 +45,7 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
     for (int i = 0; i < numMeshes; ++i) {
         auto& mesh = list[i].first;
 
-        int numVerts, numTris, bvh_size;
+        int numTris, bvh_size;
         // in.read((char*)&numVerts, sizeof(unsigned int));
         in.read((char*)&numTris, sizeof(unsigned int));
         in.read((char*)&bvh_size, sizeof(unsigned int));
@@ -64,7 +64,6 @@ std::vector<std::pair<CudaMesh, RTMaterial>> loadRTModel(const std::string& file
         in.read((char*)&bvh[0], bvh_size * sizeof(BVH));
 
         mesh = CudaMesh(tris, bvh, i);
-        // mesh = CudaMesh(verts, normals, tris, bvh, i);
 
     }
 

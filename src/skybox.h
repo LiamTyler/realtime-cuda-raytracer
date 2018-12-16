@@ -111,6 +111,8 @@ typedef struct RTSkybox {
         float v = 0.5f * (-vc / maxAxis + 1.0f);
         int w = u * width;
         int h = v * height;
+        w = min(w, width - 1);
+        h = min(h, height - 1);
         uchar4 p = data[index * width * height + h * width + w];
         return make_float3(p.x / 255.0f, p.y / 255.0f, p.z / 255.0f);
     }

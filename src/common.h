@@ -66,6 +66,14 @@ inline __host__ __device__ float3 reflect(const float3& D, const float3& N) {
     // return 2.0f * dot(D, N) * N - D;
     return D - 2.0f * dot(D, N) * N;
 }
+inline __host__ __device__ float3 refract(const float3& I, const float3& N, const float& eta) {
+    float d = dot(N, I);
+    float k = 1.0f - eta * eta * (1.0f - d * d);
+    if (k < 0.0f)
+        return make_float3(0, 0, 0);
+    else
+        return eta * I - (eta * d + sqrtf(k)) * N;
+}
 
 inline __host__ __device__ float3 fminf(const float3& a, const float3& b) {
     return make_float3(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z));

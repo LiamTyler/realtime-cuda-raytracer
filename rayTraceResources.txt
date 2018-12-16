@@ -7,6 +7,14 @@ ns 50
 ior 0
 
 Material
+name glass
+kd 0 0 0
+ks 0 0 0
+ke 1 1 1
+ns 0
+ior 1.54
+
+Material
 name green
 kd 0 1 0 
 ks .7 .7 .7

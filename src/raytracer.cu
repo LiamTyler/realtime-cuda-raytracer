@@ -1,6 +1,6 @@
 #include "raytracer.h"
 
-#define QSIZE 5;
+#define QSIZE 32;
 #define BLOCK_SIZE 8
 
 typedef struct QItem {
@@ -71,13 +71,6 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
         while (idx) {
             int i = stack[--idx];
             BVH node = bvh[i];
-            // BVH node;
-            // float4 f1  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 0);
-            // float4 f2  = tex1Dfetch<float4>(mesh.bvhTex, 2 * i + 1);
-            // node.min   = make_float3(f1.x, f1.y, f1.z);
-            // node.max   = make_float3(f2.x, f2.y, f2.z);
-            // node.left  = *(int*) &f1.w;
-            // node.right = *(int*) &f2.w;
             
             if (!RayAABBTest2(ray.pos, invRayDir, node.min, node.max, minT))
                 continue;
@@ -89,34 +82,6 @@ int intersection(const RTScene& scene, const Ray& ray, float& t, int& type, int&
                 if (node.right)
                     stack[idx++] = node.right;
             } else { // if leaf
-                /*
-                Triangle leftTri = mesh.triangles[-node.left];
-                if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv, minT)) {
-                    meshNum = m; index = -node.left; type = 1; minT = t; u = uu; v = vv;
-                }
-                if (node.right < 0) {
-                    Triangle rightTri = mesh.triangles[-node.right];
-                    if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv, minT)) {
-                        meshNum = m; index = -node.right; type = 1; minT = t; u = uu; v = vv;
-                    }
-                }
-                */
-
-                /*
-                int lT = -node.left - 1;
-                Triangle leftTri = mesh.triangles[lT];
-                if (rayTriangleTest2(ray, mesh, leftTri, t, uu, vv, minT)) {
-                    meshNum = m; index = lT; type = 1; minT = t; u = uu; v = vv;
-                }
-                ++lT;
-                if (node.right != lT) {
-                    Triangle rightTri = mesh.triangles[lT];
-                    if (rayTriangleTest2(ray, mesh, rightTri, t, uu, vv, minT)) {
-                        meshNum = m; index = lT; type = 1; minT = t; u = uu; v = vv;
-                    }
-                }
-                */
-
                 for (int tri = -node.left - 1; tri < node.right; ++tri) {
                     if (rayTriangleTest2(ray, mesh, mesh.triangles[tri], t, uu, vv, minT)) {
                         meshNum = m; index = tri; type = 1; minT = t; u = uu; v = vv;
@@ -145,11 +110,12 @@ __device__ float3 computeLighting(const RTScene& scene, const RTMaterial& mat, c
 }
 
 __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int* localStack) {
+    const Ray& ray = item.ray;
+
     if (item.depth >= 5)
-        return make_float3(0, 0, 0);
+        return scene.skybox.getColor(ray.dir);
 
     float t;
-    const Ray& ray = item.ray;
     int type, meshNum;
     float u, v;
     int index = intersection(scene, ray, t, type, meshNum, u, v, localStack);
@@ -175,14 +141,39 @@ __device__ float3 traceRay(RayQ& Q, const QItem& item, const RTScene& scene, int
 
     color += item.multiplier * computeLighting(scene, mat, p, n, -ray.dir, t);
 
-    float3 reflectMult = item.multiplier * mat.ks;
-    if (dot(reflectMult, reflectMult) < 0.1f)
-        return color;
 
-    float3 reflectDir = reflect(ray.dir, n);
-    Ray reflectRay(p + 0.001f * reflectDir, reflectDir);
-    QItem reflectItem(reflectRay, reflectMult, item.depth + 1);
-    Q.push(reflectItem);
+    float n1 = 1.0, n2 = mat.ior;
+    if (dot(n, ray.dir) > 0) { 
+        n = -n;
+        float tmp = n1;
+        n1 = n2;
+        n2 = tmp;
+    }
+
+    // reflection
+    float3 reflectMult = item.multiplier * mat.ks;
+    if (dot(reflectMult, reflectMult) >= 0.1f) {
+        float3 reflectDir = reflect(ray.dir, n);
+        Ray reflectRay(p + 0.001f * reflectDir, reflectDir);
+        QItem reflectItem(reflectRay, reflectMult, item.depth + 1);
+        Q.push(reflectItem);
+    }
+
+    // refraction
+    float3 refractMult = item.multiplier * mat.transmissive;
+    if (dot(refractMult, refractMult) >= 0.1f) {
+        float ratio = n1 / n2;
+        float3 refractDir = normalize(refract(ray.dir, n, ratio));
+        Ray refractRay(p + 0.001f * refractDir, refractDir);
+        QItem refractItem(refractRay, refractMult, item.depth + 1);
+        Q.push(refractItem);
+    }
+
+    // r = normalize(glm::refract(I, N, ratio));
+    // Ray transmissive(p + 0.001f * r, r);
+    // transmissiveColor = m->getTransmissive() * vec3(TraceRay(transmissive, depth + 1));
+
+    // color += reflectColor * kr + transmissiveColor * (1 - kr);
 
     return color;
 }

@@ -35,15 +35,8 @@ GameObject
 name cube
 position 0 5 0
 rtinfo
-#model cube2.rtModel
-#model teapot2.rtModel
-#model dragon2.rtModel
-model buddha3.rtModel
-material red
-
-#GameObject
-#name cube2
-#position -5 0 0
-#rtinfo
-#sphere 2
-#material green
+#model cube.rtModel
+#model teapot.rtModel
+model dragon.rtModel
+#model buddha.rtModel
+material glass
