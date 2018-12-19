@@ -48,7 +48,7 @@ model dragon.rtModel
 #model buddha.rtModel
 material glass
 
-GameObject
+#GameObject
 name cube
 position 0 0 0
 rtinfo

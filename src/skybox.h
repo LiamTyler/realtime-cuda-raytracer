@@ -16,7 +16,7 @@ typedef struct RTSkybox {
         std::vector<Image> images;
         images.resize(6);
         for (int i = 0; i < 6; i++) {
-            if (!images[i].LoadImage("/home/liam/Documents/Progression/resources/" + faces[i])) {
+            if (!images[i].LoadImage(PG_RESOURCE_DIR + faces[i])) {
                 std::cout << "Failed to load skybox texture: " << faces[i] << std::endl;
                 exit(EXIT_FAILURE);
             }
